@@ -3,35 +3,23 @@ import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import ts from "@wessberg/rollup-plugin-ts";
 import { terser } from 'rollup-plugin-terser';
-import pkg from './package.json';
+
+// -----------------------------------------------------------------------------
 
 export default [
-	{
-		input: './src/index.ts',
-		output: {
-			file: pkg.main,
-			format: 'cjs',
-			sourcemap: true,
-			exports: "auto"
-		},
-		external: [ "ieee754" ],
-		plugins: [
-			ts({
-				tsconfig: "./tsconfig.json"
-			}),
-			commonjs(),
-			resolve(),
-			terser({
-				ecma: 2020
-			})
-		]
-	},
-	{
+	createConfig(false),
+	createConfig(true)
+];
+
+// -----------------------------------------------------------------------------
+
+function createConfig(minimify) {
+	return {
 		input: './src/index.ts',
 		output: [
 			{
 				name: "MsgPackBigInt",
-				file: pkg.browser,
+				file: "./dist/msgpack-bigint" + (minimify ? ".min" : "") + ".js",
 				format: 'umd',
 				sourcemap: true,
 				exports: "auto"
@@ -46,12 +34,18 @@ export default [
 				ignoreGlobal: true
 			}),
 			resolve({
-				browser: true,
 				preferBuiltins: false
 			}),
 			terser({
-				ecma: 2020
+				ecma: 2020,
+				...((!minimify) && {
+					compress: false,
+					mangle: false,
+					format: {
+						beautify: true
+					}
+				})
 			})
 		]
-	}
-];
+	};
+}

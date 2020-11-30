@@ -4,6 +4,9 @@ module.exports = {
 		"es6": true,
 		"node": true
 	},
+	"plugins": [
+		"html"
+	],
 	"globals": {
 		"Atomics": "readonly",
 		"SharedArrayBuffer": "readonly"
