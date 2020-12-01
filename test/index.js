@@ -1,4 +1,4 @@
-const msgpack = require("../dist");
+const msgpack = require("../dist/msgpack-bigint");
 const test = require("ava");
 
 // -----------------------------------------------------------------------------

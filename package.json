@@ -1,10 +1,10 @@
 {
 	"name": "@randlabs/msgpack-bigint",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "MsgPack library with BigInt support",
-	"main": "dist/index.js",
+	"main": "dist/msgpack-bigint.js",
 	"browser": "dist/msgpack-bigint.min.js",
-	"types": "dist/index.d.ts",
+	"types": "dist/msgpack-bigint.d.ts",
 	"files": [
 		"dist",
 		"src/**/*.ts"
@@ -45,6 +45,7 @@
 		"@wessberg/rollup-plugin-ts": "^1.3.5",
 		"ava": "^3.13.0",
 		"eslint": "^7.10.0",
+		"eslint-plugin-html": "^6.1.1",
 		"rimraf": "^3.0.2",
 		"rollup": "^2.28.2",
 		"rollup-plugin-terser": "^7.0.2",
