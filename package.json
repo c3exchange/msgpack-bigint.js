@@ -1,6 +1,6 @@
 {
 	"name": "@randlabs/msgpack-bigint",
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"description": "MsgPack library with BigInt support",
 	"main": "dist/msgpack-bigint.js",
 	"browser": "dist/msgpack-bigint.min.js",
