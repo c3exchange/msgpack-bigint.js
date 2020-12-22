@@ -181,7 +181,6 @@ export class MsgPackDecoder {
 			return (BigInt(hi) * uint32Max) + BigInt(lo);
 		}
 		return (hi * 0x1_0000_0000) + lo;
-
 	}
 
 	private readFloat(/*param?: number | IReaderFunction*/): any {
@@ -256,7 +255,11 @@ export class MsgPackDecoder {
 		}
 		this.checkAvailable(param);
 
-		const str = [];
+		let invalidUtf8 = false;
+		const savedOffset = this.ofs;
+		const savedParam = param;
+
+		let str = [];
 
 		while (param > 0) {
 			let ch = this.buffer[this.ofs];
@@ -269,20 +272,40 @@ export class MsgPackDecoder {
 			}
 
 			if ((ch & 0xE0) === 0xC0) {
+				if (param < 1) { //invalid character found
+					invalidUtf8 = true;
+					break;
+				}
+
 				ch = ((ch & 0x1F) << 6) | (this.buffer[this.ofs] & 0x3F);
 				this.ofs += 1;
 				param -= 1;
 			}
 			else if ((ch & 0xF0) === 0xE0) {
+				if (param < 2) { //invalid character found
+					invalidUtf8 = true;
+					break;
+				}
+
 				ch = ((ch & 0x0F) << 12) | ((this.buffer[this.ofs] & 0x3F) << 6) | (this.buffer[this.ofs + 1] & 0x3F);
 				this.ofs += 2;
 				param -= 2;
 			}
 			else if ((ch & 0xF8) === 0xF0) {
+				if (param < 3) { //invalid character found
+					invalidUtf8 = true;
+					break;
+				}
+
 				ch = ((ch & 0x0F) << 18) | ((this.buffer[this.ofs] & 0x3F) << 12) | ((this.buffer[this.ofs + 1] & 0x3F) << 6) |
 					(this.buffer[this.ofs + 2] & 0x3F);
 				this.ofs += 3;
 				param -= 3;
+			}
+			else {
+				//invalid character found
+				invalidUtf8 = true;
+				break;
 			}
 
 			if (ch >= 0x010000) {
@@ -291,6 +314,16 @@ export class MsgPackDecoder {
 			}
 			else {
 				str.push(String.fromCharCode(ch));
+			}
+		}
+
+		//code will enter inside this loop if we found an invalid UTF-8 character to decode in the previous one
+		if (invalidUtf8) {
+			str = [];
+			this.ofs = savedOffset;
+			for (param = savedParam; param > 0; param -= 1) {
+				str.push(String.fromCharCode(this.buffer[this.ofs]));
+				this.ofs += 1;
 			}
 		}
 
