@@ -91,7 +91,7 @@ export class MsgPackDecoder {
 	}
 
 	public process(): any {
-		if (this.len == 0) {
+		if (this.ofs >= this.len) {
 			return undefined;
 		}
 

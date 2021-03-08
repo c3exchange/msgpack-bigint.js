@@ -15,4 +15,12 @@ export default class MsgPackBigInt {
 		const d = new MsgPackDecoder(buffer, options);
 		return d.process();
 	}
+
+	static createEncoder(obj: any, options?: MsgPackEncoderOptions): MsgPackEncoder {
+		return new MsgPackEncoder(obj, options);
+	}
+
+	static createDecoder(buffer: Uint8Array, options?: MsgPackDecoderOptions): MsgPackDecoder {
+		return new MsgPackDecoder(buffer, options);
+	}
 }
