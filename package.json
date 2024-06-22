@@ -10,7 +10,7 @@
 		"clean:node": "rimraf -I lib",
 		"build": "npm run build:node && npm run build:browser",
 		"build:browser": "npm run clean:browser && webpack",
-		"build:node": "npm run clean:node && tsc && npm run gen:decl:node",
+		"build:node": "npm run clean:node && tsc && npm run gen:decl:node && rimraf -I -g lib/**/tsconfig.tsbuildinfo",
 		"gen:decl:node": "dts-bundle-generator -o lib/index.d.ts -no-banner src/index.ts",
 		"prepack": "npm run build:node",
 		"test": "npm run clean:node && tsc --project tsconfig.tests.json && npm run gen:decl:node && ava",
