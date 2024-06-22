@@ -4,8 +4,6 @@
 		".tsimp",
 		"lib",
 		"dist",
-		"node_modules",
-		"**/*.test.ts",
-		"**/tests/*"
+		"node_modules"
 	]
 }

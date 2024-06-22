@@ -1,55 +1,63 @@
 {
-	"name": "@randlabs/msgpack-bigint",
-	"version": "1.0.3",
-	"description": "MsgPack library with BigInt support",
-	"main": "dist/msgpack-bigint.js",
-	"browser": "dist/msgpack-bigint.min.js",
-	"types": "dist/msgpack-bigint.d.ts",
-	"files": [
-		"dist",
-		"src/**/*.ts"
-	],
+	"name": "@c3exchange/msgpack.js",
+	"version": "1.0.0",
+	"description": "Extensible MsgPack library with BigInt & Date support",
+	"main": "lib/index.js",
+	"types": "lib/index.d.ts",
+	"browser": "dist/msgpack.min.js",
 	"scripts": {
-		"build": "rimraf dist && rollup -c",
-		"prepack": "npm run build",
-		"test": "npm run build && node ./node_modules/ava/cli.js --verbose"
+		"clean:browser": "rimraf -I dist",
+		"clean:node": "rimraf -I lib",
+		"build": "npm run build:node && npm run build:browser",
+		"build:browser": "npm run clean:browser && webpack",
+		"build:node": "npm run clean:node && tsc && npm run gen:decl:node",
+		"gen:decl:node": "dts-bundle-generator -o lib/index.d.ts -no-banner src/index.ts",
+		"prepack": "npm run build:node",
+		"test": "npm run clean:node && tsc --project tsconfig.tests.json && npm run gen:decl:node && ava",
+		"lint": "eslint"
 	},
+	"homepage": "https://github.com/c3exchange/msgpack.js",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/randlabs/msgpack-bigint.git"
+		"url": "git+https://github.com/c3exchange/msgpack.js.git"
 	},
-	"keywords": [
-		"msgpack",
-		"bigint"
-	],
-	"author": "RandLabs IO",
-	"license": "Apache-2.0",
 	"bugs": {
-		"url": "https://github.com/randlabs/msgpack-bigint/issues"
+		"url": "https://github.com/c3exchange/msgpack.js/issues"
 	},
-	"ava": {
-		"files": [
-			"test/index.js"
-		]
+	"author": "C3.io",
+	"license": "Apache-2.0",
+	"engines": {
+		"node": ">= 18.0.0"
 	},
-	"homepage": "https://github.com/randlabs/msgpack-bigint#readme.md",
 	"dependencies": {
 		"ieee754": "1.2.1"
 	},
 	"devDependencies": {
-		"@rollup/plugin-commonjs": "^15.1.0",
-		"@rollup/plugin-node-resolve": "^9.0.0",
-		"@types/node": "^14.14.31",
-		"@typescript-eslint/eslint-plugin": "^3.7.1",
-		"@typescript-eslint/parser": "^3.7.1",
-		"@wessberg/rollup-plugin-ts": "^1.3.8",
-		"ava": "^3.15.0",
-		"eslint": "^7.21.0",
-		"eslint-plugin-html": "^6.1.1",
-		"rimraf": "^3.0.2",
-		"rollup": "^2.40.0",
-		"rollup-plugin-terser": "^7.0.2",
-		"tslib": "^2.1.0",
-		"typescript": "^4.2.3"
+		"@eslint/js": "^9.5.0",
+		"@types/node": "^20.14.8",
+		"ava": "^6.1.3",
+		"buffer": "^6.0.3",
+		"dts-bundle-generator": "^9.5.1",
+		"eslint": "^9.5.0",
+		"rimraf": "^5.0.7",
+		"terser-webpack-plugin": "^5.3.10",
+		"ts-loader": "^9.5.1",
+		"typescript": "^5.5.2",
+		"typescript-eslint": "^8.0.0-alpha.30",
+		"webpack": "^5.92.1",
+		"webpack-cli": "^5.1.4"
+	},
+	"files": [
+		"package.json",
+		"*.md",
+		"LICENSE",
+		"dist/**/*",
+		"lib/**/*",
+		"src/**/*"
+	],
+	"ava": {
+		"files": [
+			"**/*.tests.js"
+		]
 	}
 }

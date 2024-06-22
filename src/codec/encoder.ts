@@ -1,88 +1,110 @@
-//License: Apache 2.0. See LICENSE.md
+import { MsgPackExtension, MsgPackBigIntExtension, MsgPackDateExtension } from '../ext';
 
 // -----------------------------------------------------------------------------
 
-const uint8Max = BigInt(0x100);
-const uint16Max = BigInt(0x10000);
-const uint32Max = BigInt(0x100000000);
-const uint64Max = BigInt("0x10000000000000000");
-
-const neg32 = BigInt(-0x20);
-const int8Min = BigInt(-0x80);
-const int16Min = BigInt(-0x8000);
-const int32Min = BigInt(-0x80000000);
-const int64Min = BigInt("-9223372036854775808");
-
-// -----------------------------------------------------------------------------
-
-export interface MsgPackEncoderExtensionResult {
-	type: number;
-	data: Uint8Array;
-}
-
+/**
+ * MsgPack encoder configuration options.
+ * @interface MsgPackEncoderOptions
+ */
 export interface MsgPackEncoderOptions {
-	extension?: (obj: unknown) => MsgPackEncoderExtensionResult;
-	sortKeys?: boolean;
-	useFloat?: boolean;
-}
+	/**
+	 * A set of msgpack extensions.
+	 * @type {MsgPackExtension[]}
+	 */
+	extensions: MsgPackExtension[];
 
+	/**
+	 * Sorts keys before encoding an object.
+	 * @type {boolean}
+	 * @default true
+	 */
+	sortKeys: boolean;
+
+	/**
+	 * If a number is not a safe integer, store it as a single-precision floating-point
+	 * value instead of double-precision.
+	 * @type {boolean}
+	 * @default false
+	 */
+	useFloat: boolean;
+};
+
+/**
+ * Implements a MsgPack encoder.
+ * @class MsgPackEncoder
+ */
 export class MsgPackEncoder {
-	private obj: any;
-	private buffer: Uint8Array;
-	private bufferView: DataView;
-	private bufferLen: number;
-	private extension: ((obj: unknown) => MsgPackEncoderExtensionResult) | null;
-	private sortKeys: boolean;
-	private useFloat: boolean;
+	private bufferView = new DataView(new ArrayBuffer(2048));
+	private buffer = new Uint8Array(this.bufferView.buffer);
+	private bufferLen = 0;
 
-	constructor(obj: any, options?: MsgPackEncoderOptions) {
-		this.obj = obj;
-		this.bufferView = new DataView(new ArrayBuffer(2048));
-		this.buffer = new Uint8Array(this.bufferView.buffer);
-		this.bufferLen = 0;
+	/**
+	 * Encodes a value into on array of bytes using MsgPack codec.
+	 * @method encode
+	 * @param {any} value - The value to encode.
+	 * @param {MsgPackEncoderOptions} opts - Encoder configuration settings.
+	 * @returns {Uint8Array} - The encoded data as a byte array.
+	 */
+	public static encode<T = any>(value: T, opts?: Partial<MsgPackEncoderOptions>): Uint8Array {
+		opts = Object.assign({}, {
+			extensions: [
+				new MsgPackBigIntExtension(1),
+				new MsgPackDateExtension()
+			],
+			sortKeys: true,
+			useFloat: false
+		}, opts);
 
-		this.extension = null;
-		this.sortKeys = false;
-		this.useFloat = false;
-		if (options) {
-			if (options.extension) {
-				this.extension = options.extension;
-			}
-			if (options.sortKeys) {
-				this.sortKeys = options.sortKeys;
-			}
-			if (options.useFloat) {
-				this.useFloat = options.useFloat;
-			}
-		}
+		const e = new MsgPackEncoder(value, opts.extensions || [], opts.sortKeys as boolean, opts.useFloat as boolean);
+		return e.process();
+	};
+
+	private constructor(private value: any, private extensions: MsgPackExtension[], private sortKeys: boolean, private useFloat: boolean) {
 	}
 
-	public process(): Uint8Array {
-		//parse input data
-		this.parse(this.obj);
-
+	private process(): Uint8Array {
+		this.parse(this.value);
 		return new Uint8Array(this.buffer.buffer, 0, this.bufferLen);
 	}
 
 	private parse(obj: any): void {
 		if (obj === null) {
 			this.encodeNull();
+			return;
 		}
-		else if (typeof obj === "boolean") {
+		if (typeof obj === 'boolean') {
 			this.encodeBoolean(obj);
+			return;
 		}
-		else if (typeof obj === "number") {
+		if (typeof obj === 'number') {
 			this.encodeNumber(obj);
+			return;
 		}
-		else if (typeof obj === "string") {
+		if (typeof obj === 'string') {
 			this.encodeString(obj);
+			return;
 		}
-		else if (typeof obj === "bigint") {
-			this.encodeBigInt(obj);
+		for (const extension of this.extensions) {
+			if (extension.is(obj)) {
+				const data = extension.encode(obj);
+				this.encodeExtension(extension.type, data);
+				return;
+			}
 		}
-		else {
-			this.encodeObject(obj);
+		if (Array.isArray(obj)) {
+			this.encodeArray(obj);
+			return;
 		}
+		if (ArrayBuffer.isView(obj)) {
+			this.encodeBinary(obj);
+			return;
+		}
+		if (typeof obj === 'object') {
+			this.encodeMap(obj as Record<any, any>);
+			return;
+		}
+
+		throw new Error('MsgPackEncoder: unsupported object of type ' + Object.prototype.toString.apply(obj));
 	}
 
 	private encodeNull(): void {
@@ -219,85 +241,10 @@ export class MsgPackEncoder {
 			this.writeUint32(ofs);
 		}
 		else {
-			throw new Error("MsgPackEncoder: string too long");
+			throw new Error('MsgPackEncoder: string too long');
 		}
 
 		this.writeBuffer(new Uint8Array(buf.buffer, 0, ofs));
-	}
-
-	encodeBigInt(obj: bigint): void {
-		if (obj >= BigInt(0)) {
-			if (obj < BigInt(0x80)) {
-				this.writeUint8(Number(obj));
-			}
-			else if (obj < uint8Max) {
-				this.writeUint8(0xCC);
-				this.writeUint8(Number(obj));
-			}
-			else if (obj < uint16Max) {
-				this.writeUint8(0xCD);
-				this.writeUint16(Number(obj));
-			}
-			else if (obj < uint32Max) {
-				this.writeUint8(0xCE);
-				this.writeUint32(Number(obj));
-			}
-			else if (obj < uint64Max) {
-				this.writeUint8(0xCF);
-				this.writeUint64(obj);
-			}
-			else {
-				throw new Error("MsgPackEncoder: positive bigint too big");
-			}
-		}
-		else {
-			if (obj >= neg32) {
-				this.writeUint8(0xE0 | (Number(obj) + 0x20));
-			}
-			else if (obj >= int8Min) {
-				this.writeUint8(0xD0);
-				this.writeInt8(Number(obj));
-			}
-			else if (obj >= int16Min) {
-				this.writeUint8(0xD1);
-				this.writeInt16(Number(obj));
-			}
-			else if (obj >= int32Min) {
-				this.writeUint8(0xD2);
-				this.writeInt32(Number(obj));
-			}
-			else if (obj >= int64Min) {
-				this.writeUint8(0xD3);
-				this.writeInt64(obj);
-			}
-			else {
-				throw new Error("MsgPackEncoder: negative bigint too big");
-			}
-		}
-	}
-
-	encodeObject(obj: unknown): void {
-		if (this.extension) {
-			const ext = this.extension(obj);
-			if (ext) {
-				this.encodeExtension(ext);
-				return;
-			}
-		}
-		if (Array.isArray(obj)) {
-			this.encodeArray(obj);
-			return;
-		}
-		if (ArrayBuffer.isView(obj)) {
-			this.encodeBinary(obj);
-			return;
-		}
-		if (typeof obj === "object") {
-			this.encodeMap(obj as Record<string, unknown>);
-			return;
-		}
-
-		throw new Error("MsgPackEncoder: unsupported object of type " + Object.prototype.toString.apply(obj));
 	}
 
 	encodeBinary(obj: ArrayBufferView): void {
@@ -315,7 +262,7 @@ export class MsgPackEncoder {
 			this.writeUint32(size);
 		}
 		else {
-			throw new Error("MsgPackEncoder: binary object is too large");
+			throw new Error('MsgPackEncoder: binary object is too large');
 		}
 
 		this.writeBuffer(new Uint8Array(obj.buffer, obj.byteOffset, obj.byteLength));
@@ -335,7 +282,7 @@ export class MsgPackEncoder {
 			this.writeUint32(size);
 		}
 		else {
-			throw new Error("MsgPackEncoder: array object is too large");
+			throw new Error('MsgPackEncoder: array object is too large');
 		}
 
 		for (const v of obj) {
@@ -343,7 +290,7 @@ export class MsgPackEncoder {
 		}
 	}
 
-	encodeMap(obj: Record<string, unknown>): void {
+	encodeMap(obj: Record<any, any>): void {
 		const keys = Object.keys(obj);
 		if (this.sortKeys) {
 			keys.sort();
@@ -368,19 +315,19 @@ export class MsgPackEncoder {
 			this.writeUint32(keysCount);
 		}
 		else {
-			throw new Error("MsgPackEncoder: array object is too large");
+			throw new Error('MsgPackEncoder: object has a large number of keys');
 		}
 
 		for (const key of keys) {
 			if (obj[key] !== undefined) {
-				this.encodeString(key);
+				this.parse(key);
 				this.parse(obj[key]);
 			}
 		}
 	}
 
-	encodeExtension(ext: MsgPackEncoderExtensionResult): void {
-		const size = ext.data.length;
+	encodeExtension(type: number, data: Uint8Array): void {
+		const size = data.length;
 		if (size === 1) {
 			this.writeUint8(0xD4);
 		}
@@ -409,11 +356,10 @@ export class MsgPackEncoder {
 			this.writeUint32(size);
 		}
 		else {
-			throw new Error("MsgPackEncoder: extension object is too large");
+			throw new Error('MsgPackEncoder: extension object is too large');
 		}
-
-		this.writeUint8(ext.type);
-		this.writeBuffer(ext.data);
+		this.writeInt8(type);
+		this.writeBuffer(data);
 	}
 
 	private writeUint8(n: number): void {
@@ -452,38 +398,19 @@ export class MsgPackEncoder {
 		this.bufferLen += 4;
 	}
 
-	private writeUint64(n: number | bigint): void {
+	private writeUint64(n: number): void {
 		this.ensureSpace(8);
-		if (typeof n === 'number') {
-			const hi = Math.floor(n / 0x1_0000_0000);
-			this.bufferView.setUint32(this.bufferLen, hi);
-			this.bufferView.setUint32(this.bufferLen + 4, n); //high bits will be truncated by DataView
-		}
-		else {
-			const hi = Number(n / uint32Max);
-			const lo = Number(n % uint32Max);
-			this.bufferView.setUint32(this.bufferLen, hi);
-			this.bufferView.setUint32(this.bufferLen + 4, lo);
-		}
+		const hi = Math.floor(n / 0x1_0000_0000);
+		this.bufferView.setUint32(this.bufferLen, hi);
+		this.bufferView.setUint32(this.bufferLen + 4, n); //high bits will be truncated by DataView
 		this.bufferLen += 8;
 	}
 
-	private writeInt64(n: number | bigint) {
+	private writeInt64(n: number) {
 		this.ensureSpace(8);
-		if (typeof n === 'number') {
-			const hi = Math.floor(n / 0x1_0000_0000);
-			this.bufferView.setUint32(this.bufferLen, hi);
-			this.bufferView.setUint32(this.bufferLen + 4, n); //high bits will be truncated by DataView
-		}
-		else {
-			let hi = Number(n / uint32Max);
-			const lo = Number(n % uint32Max);
-			if (hi < 0 && lo !== 0) {
-				hi -= 1;
-			}
-			this.bufferView.setUint32(this.bufferLen, hi);
-			this.bufferView.setUint32(this.bufferLen + 4, lo);
-		}
+		const hi = Math.floor(n / 0x1_0000_0000);
+		this.bufferView.setUint32(this.bufferLen, hi);
+		this.bufferView.setUint32(this.bufferLen + 4, n); //high bits will be truncated by DataView
 		this.bufferLen += 8;
 	}
 
@@ -517,4 +444,4 @@ export class MsgPackEncoder {
 			this.bufferView = newBufferView;
 		}
 	}
-}
+};

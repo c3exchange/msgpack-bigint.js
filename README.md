@@ -1,11 +1,11 @@
-# msgpack-bigint
+# msgpack.js
 
-A message-pack encoder/decoder library that supports ES2020 bigints.
+An extensible message-pack encoder/decoder library that supports `bigint`s and `Date`s.
 
 ## Installation
 
 ```shell
-npm install --save @randlabs/msgpack-bigint
+npm install --save @c3exchange/msgpack.js
 ```
 
 # License
